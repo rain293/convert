@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Content Extractor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #f0f2f5;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px 0;
+    }
+    .header h1 {
+      font-size: 2.5rem;
+      color: #1a3253;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .header p {
+      color: #546e7a;
+      font-size: 1.1rem;
+    }
+    .content {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      height: 500px;
+      flex-grow: 1;
+    }
+    @media (max-width: 768px) {
+      .content {
+        flex-direction: column;
+        height: auto;
+      }
+    }
+    .textarea-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      background-color: white;
+      overflow: hidden;
+      transition: box-shadow 0.3s ease;
+    }
+    .textarea-container:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    .textarea-header {
+      padding: 16px;
+      background-color: #1677ff;
+      color: white;
+      border-radius: 12px 12px 0 0;
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: 0.3px;
+    }
+    .content-area {
+      flex-grow: 1;
+      padding: 0;
+      overflow-y: auto;
+      font-size: 1rem;
+      line-height: 1.5;
+      position: relative;
+    }
+    .textarea {
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      line-height: 1.5;
+      resize: none;
+      background: transparent;
+      padding: 16px;
+    }
+    .content-rows {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+    .content-row {
+      height: 40px;
+      line-height: 40px;
+      padding: 0 16px;
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      position: relative;
+    }
+    .content-row:hover {
+      background-color: #f5f8ff;
+    }
+    .content-row.highlight {
+      background-color: #e1ecff;
+    }
+    .content-row.active {
+      background-color: #d0e2ff;
+    }
+    .content-row.selected {
+      background-color: #e6f4ff;
+    }
+    .content-row.selected::before {
+      content: '✓';
+      position: absolute;
+      left: 4px;
+      color: #1677ff;
+      font-weight: bold;
+    }
+    .buttons {
+      display: flex;
+      gap: 15px;
+      margin-top: 24px;
+      justify-content: center;
+    }
+    .btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .btn-primary {
+      background-color: #1677ff;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #0958d9;
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(1px);
+    }
+    .btn-danger {
+      background-color: #ff4d4f;
+      color: white;
+    }
+    .btn-danger:hover {
+      background-color: #cf1322;
+      transform: translateY(-1px);
+    }
+    .btn-danger:active {
+      transform: translateY(1px);
+    }
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      background-color: #52c41a;
+      color: white;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .notification.show {
+      opacity: 1;
+    }
+    .mode-switch {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+      gap: 15px;
+      align-items: center;
+    }
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      color: #1a3253;
+      font-weight: 600;
+    }
+    .toggle-label input {
+      display: none;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+      background-color: #e4e4e4;
+      border-radius: 13px;
+      margin: 0 10px;
+      transition: all 0.3s;
+    }
+    .toggle-switch::before {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s;
+    }
+    .toggle-label input:checked + .toggle-switch {
+      background-color: #1677ff;
+    }
+    .toggle-label input:checked + .toggle-switch::before {
+      transform: translateX(24px);
+    }
+    .selection-controls {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      color: #546e7a;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .selection-controls button {
+      background: none;
+      border: none;
+      color: #1677ff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    .selection-controls button:hover {
+      background-color: #f5f8ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Content Extractor</h1>
+      <p>Extract clean URLs or text content from your pasted text</p>
+    </div>
+    <div class="mode-switch">
+      <span>URL Mode</span>
+      <label class="toggle-label">
+        <input id="mode-toggle" type="checkbox">
+        <span class="toggle-switch"></span>
+      </label>
+      <span>Text Mode</span>
+    </div>
+    <div class="content">
+      <div class="textarea-container">
+        <div class="textarea-header">Paste Area</div>
+        <div class="content-area" id="input-area">
+          <textarea class="textarea" id="input-text" placeholder="Paste here..."></textarea>
+          <div class="content-rows" id="input-display" style="display:none;">
+            <div class="selection-controls">
+              <span>Select rows to convert</span>
+              <div>
+                <button id="select-all-input">Select All</button>
+                <button id="deselect-all-input">Deselect All</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="textarea-container">
+        <div class="textarea-header">Extracted Content</div>
+        <div class="content-area" id="output-area">
+          <div class="content-rows" id="output-display">
+            <div class="selection-controls">
+              <span>Select rows to copy</span>
+              <div>
+                <button id="select-all-output">Select All</button>
+                <button id="deselect-all-output">Deselect All</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="btn btn-primary" id="convert-btn">Convert</button>
+      <button class="btn btn-primary" id="copy-btn">Copy Selected</button>
+      <button class="btn btn-danger" id="clear-btn">Clear</button>
+    </div>
+    <div class="notification" id="notification">Copied to clipboard!</div>
+  </div>
+
+  <script>
+    const inputText = document.getElementById('input-text');
+    const inputDisplay = document.getElementById('input-display');
+    const outputDisplay = document.getElementById('output-display');
+    const convertBtn = document.getElementById('convert-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const notification = document.getElementById('notification');
+    const modeToggle = document.getElementById('mode-toggle');
+    const inputArea = document.getElementById('input-area');
+    const outputArea = document.getElementById('output-area');
+    const selectAllInput = document.getElementById('select-all-input');
+    const deselectAllInput = document.getElementById('deselect-all-input');
+    const selectAllOutput = document.getElementById('select-all-output');
+    const deselectAllOutput = document.getElementById('deselect-all-output');
+    
+    let currentMode = 'url'; // Default mode
+    let extractedData = [];
+    let selectedInputRows = [];
+    let selectedOutputRows = [];
+    
+    modeToggle.addEventListener('change', function() {
+      currentMode = this.checked ? 'text' : 'url';
+    });
+
+    // Synchronized scrolling
+    inputArea.addEventListener('scroll', function() {
+      outputArea.scrollTop = this.scrollTop;
+    });
+
+    outputArea.addEventListener('scroll', function() {
+      inputArea.scrollTop = this.scrollTop;
+    });
+
+    function createFixedRow(content, index) {
+      const row = document.createElement('div');
+      row.classList.add('content-row');
+      row.textContent = content || ' ';
+      row.dataset.index = index;
+      return row;
+    }
+
+    function extractLines(text) {
+      const lines = text.split('\n');
+      return lines.map(line => {
+        const trimmed = line.trim();
+        let output = '';
+        
+        if (currentMode === 'url') {
+          // URL extraction mode - extract URLs from markdown links
+          const urlMatch = trimmed.match(/\[(.*?)\]\((.*?)\)/);
+          if (urlMatch) {
+            output = urlMatch[2]; // Extract the URL part
+          } else {
+            // Check if the line itself might be a URL
+            output = trimmed.startsWith('http') ? trimmed : '';
+          }
+        } else {
+          // Text mode - extract text from markdown and clean it
+          output = trimmed.replace(/\[(.*?)\]\(.*?\)/g, '$1').replace(/\*/g, '').trim();
+        }
+        
+        return {
+          input: trimmed || ' ',
+          output: output || ' '
+        };
+      });
+    }
+
+    // Handle row highlighting when clicked
+    function setupRowHighlighting() {
+      const inputRows = inputDisplay.querySelectorAll('.content-row:not(.selection-controls)');
+      const outputRows = outputDisplay.querySelectorAll('.content-row:not(.selection-controls)');
+      
+      inputRows.forEach((row, index) => {
+        row.addEventListener('click', () => {
+          // Handle selection for conversion
+          if (row.classList.contains('selected')) {
+            row.classList.remove('selected');
+            selectedInputRows = selectedInputRows.filter(i => i !== index);
+          } else {
+            row.classList.add('selected');
+            selectedInputRows.push(index);
+          }
+          
+          // Handle highlighting
+          inputRows.forEach(r => r.classList.remove('highlight'));
+          outputRows.forEach(r => r.classList.remove('highlight'));
+          
+          row.classList.add('highlight');
+          if (outputRows[index]) {
+            outputRows[index].classList.add('highlight');
+          }
+        });
+      });
+      
+      outputRows.forEach((row, index) => {
+        row.addEventListener('click', () => {
+          // Handle selection for copying
+          if (row.classList.contains('selected')) {
+            row.classList.remove('selected');
+            selectedOutputRows = selectedOutputRows.filter(i => i !== index);
+          } else {
+            row.classList.add('selected');
+            selectedOutputRows.push(index);
+          }
+          
+          // Handle highlighting
+          inputRows.forEach(r => r.classList.remove('highlight'));
+          outputRows.forEach(r => r.classList.remove('highlight'));
+          
+          row.classList.add('highlight');
+          if (inputRows[index]) {
+            inputRows[index].classList.add('highlight');
+          }
+        });
+      });
+    }
+
+    // Selection control buttons
+    selectAllInput.addEventListener('click', () => {
+      const inputRows = inputDisplay.querySelectorAll('.content-row:not(.selection-controls)');
+      selectedInputRows = [];
+      
+      inputRows.forEach((row, index) => {
+        row.classList.add('selected');
+        selectedInputRows.push(index);
+      });
+    });
+
+    deselectAllInput.addEventListener('click', () => {
+      const inputRows = inputDisplay.querySelectorAll('.content-row:not(.selection-controls)');
+      inputRows.forEach(row => {
+        row.classList.remove('selected');
+      });
+      selectedInputRows = [];
+    });
+
+    selectAllOutput.addEventListener('click', () => {
+      const outputRows = outputDisplay.querySelectorAll('.content-row:not(.selection-controls)');
+      selectedOutputRows = [];
+      
+      outputRows.forEach((row, index) => {
+        row.classList.add('selected');
+        selectedOutputRows.push(index);
+      });
+    });
+
+    deselectAllOutput.addEventListener('click', () => {
+      const outputRows = outputDisplay.querySelectorAll('.content-row:not(.selection-controls)');
+      outputRows.forEach(row => {
+        row.classList.remove('selected');
+      });
+      selectedOutputRows = [];
+    });
+
+    // Convert button handler
+    convertBtn.onclick = () => {
+      const raw = inputText.value;
+      extractedData = extractLines(raw);
+
+      inputText.style.display = 'none';
+      inputDisplay.style.display = 'block';
+      inputDisplay.innerHTML = '<div class="selection-controls"><span>Select rows to convert</span><div><button id="select-all-input">Select All</button><button id="deselect-all-input">Deselect All</button></div></div>';
+      outputDisplay.innerHTML = '<div class="selection-controls"><span>Select rows to copy</span><div><button id="select-all-output">Select All</button><button id="deselect-all-output">Deselect All</button></div></div>';
+
+      // Re-add event listeners for new buttons
+      document.getElementById('select-all-input').addEventListener('click', selectAllInput.onclick);
+      document.getElementById('deselect-all-input').addEventListener('click', deselectAllInput.onclick);
+      document.getElementById('select-all-output').addEventListener('click', selectAllOutput.onclick);
+      document.getElementById('deselect-all-output').addEventListener('click', deselectAllOutput.onclick);
+
+      extractedData.forEach((pair, index) => {
+        const inputRow = createFixedRow(pair.input, index);
+        const outputRow = createFixedRow(pair.output, index);
+        
+        // Default to selected
+        inputRow.classList.add('selected');
+        outputRow.classList.add('selected');
+        selectedInputRows.push(index);
+        selectedOutputRows.push(index);
+        
+        inputDisplay.appendChild(inputRow);
+        outputDisplay.appendChild(outputRow);
+      });
+      
+      // Setup highlighting for the newly created rows
+      setupRowHighlighting();
+    };
+
+    // Copy button handler
+    copyBtn.onclick = () => {
+      if (extractedData.length === 0 || selectedOutputRows.length === 0) {
+        return;
+      }
+      
+      // Collect selected output text
+      const textToCopy = selectedOutputRows
+        .map(index => extractedData[index]?.output.trim())
+        .filter(text => text && text !== ' ')
+        .join('\n');
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => {
+          // Show notification
+          notification.classList.add('show');
+          setTimeout(() => {
+            notification.classList.remove('show');
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy: ', err);
+        });
+    };
+
+    // Clear button handler
+    clearBtn.onclick = () => {
+      inputText.value = '';
+      inputText.style.display = 'block';
+      inputDisplay.style.display = 'none';
+      inputDisplay.innerHTML = '<div class="selection-controls"><span>Select rows to convert</span><div><button id="select-all-input">Select All</button><button id="deselect-all-input">Deselect All</button></div></div>';
+      outputDisplay.innerHTML = '<div class="selection-controls"><span>Select rows to copy</span><div><button id="select-all-output">Select All</button><button id="deselect-all-output">Deselect All</button></div></div>';
+      extractedData = [];
+      selectedInputRows = [];
+      selectedOutputRows = [];
+    };
+  </script>
+</body>
+</html>
